@@ -1,10 +1,11 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { useEffect, useState, useCallback } from 'react';
 import { Toaster } from 'react-hot-toast';
 import useAuthStore from './store/authStore';
 
 // Layout
 import Layout from './components/Layout';
+import Chatbot from './components/Chatbot';
 
 // Pages
 import HomePage from './pages/HomePage';
@@ -203,8 +204,29 @@ function App() {
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>
+
+      {/* Global Chatbot - Available on all pages */}
+      <ChatbotWrapper />
     </Router>
   );
+}
+
+// Chatbot wrapper with navigation support
+function ChatbotWrapper() {
+  const navigate = useNavigate();
+  const { user, profile } = useAuthStore();
+
+  const handleMedicineSearch = useCallback((medicineName) => {
+    // Navigate to search page with the medicine query
+    navigate(`/search?q=${encodeURIComponent(medicineName)}`);
+  }, [navigate]);
+
+  // Only show chatbot for customers or non-logged in users
+  const showChatbot = !profile || profile?.role === 'customer';
+
+  if (!showChatbot) return null;
+
+  return <Chatbot onMedicineSearch={handleMedicineSearch} />;
 }
 
 export default App;

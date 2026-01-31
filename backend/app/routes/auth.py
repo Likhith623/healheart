@@ -41,7 +41,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 
 @router.post("/signup", response_model=TokenResponse)
 async def sign_up(user_data: UserSignUp):
-    """Register a new user (customer or retailer)"""
+    """Register a new user (customer or retailer) with improved error logging"""
     try:
         # Create user in Supabase Auth
         auth_response = supabase.auth.sign_up({
@@ -54,39 +54,57 @@ async def sign_up(user_data: UserSignUp):
                 }
             }
         })
-        
-        if not auth_response.user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Failed to create user"
-            )
-        
-        # Update profile with additional info
+
+        # Check for SDK-level error first
+        sdk_error = None
+        try:
+            sdk_error = getattr(auth_response, 'error', None) or (auth_response.get('error') if isinstance(auth_response, dict) else None)
+        except Exception:
+            sdk_error = None
+
+        if sdk_error:
+            # Log full SDK error so you can inspect Supabase trigger/database problems
+            import logging
+            logging.getLogger(__name__).error("Supabase sign_up error: %s", sdk_error)
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Registration failed: {sdk_error}")
+
+        # Ensure a user object was returned
+        if not getattr(auth_response, 'user', None):
+            import logging
+            logging.getLogger(__name__).error("Supabase sign_up returned no user. Response: %s", auth_response)
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to create user")
+
+        # Update profile with additional info (use admin client)
         if user_data.phone:
-            supabase_admin.table("profiles").update({
+            update_resp = supabase_admin.table("profiles").update({
                 "phone": user_data.phone
             }).eq("id", auth_response.user.id).execute()
-        
-        # Get the profile
+            try:
+                upd_err = getattr(update_resp, 'error', None) or (update_resp.get('error') if isinstance(update_resp, dict) else None)
+            except Exception:
+                upd_err = None
+            if upd_err:
+                logging.getLogger(__name__).warning("Profile update warning for user %s: %s", auth_response.user.id, upd_err)
+
+        # Fetch the created profile (if trigger created one)
         profile = supabase_admin.table("profiles").select("*").eq("id", auth_response.user.id).single().execute()
-        
+
         return TokenResponse(
-            access_token=auth_response.session.access_token if auth_response.session else "",
+            access_token=auth_response.session.access_token if getattr(auth_response, 'session', None) else "",
             user={
                 "id": str(auth_response.user.id),
                 "email": auth_response.user.email,
                 "role": user_data.role.value,
                 "full_name": user_data.full_name,
-                "profile": profile.data
+                "profile": getattr(profile, 'data', profile.get('data') if isinstance(profile, dict) else None)
             }
         )
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Registration failed: {str(e)}"
-        )
+        import logging
+        logging.getLogger(__name__).exception("Unexpected error during signup: %s", e)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Registration failed: {str(e)}")
 
 
 @router.post("/signin", response_model=TokenResponse)
