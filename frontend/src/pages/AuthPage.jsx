@@ -68,8 +68,9 @@ const AuthPage = () => {
         toast.success('Welcome back!');
         
         // Navigate based on selected role
+        // Pharmacy users go to home page first, customers go to dashboard
         if (selectedRole === 'retailer') {
-          navigate('/retailer/dashboard');
+          navigate('/');
         } else {
           navigate('/customer/dashboard');
         }
@@ -84,8 +85,9 @@ const AuthPage = () => {
         toast.success('Account created successfully!');
         
         // Navigate based on selected role
+        // Pharmacy users go to home page first, customers go to dashboard
         if (selectedRole === 'retailer') {
-          navigate('/retailer/dashboard');
+          navigate('/');
         } else {
           navigate('/customer/dashboard');
         }

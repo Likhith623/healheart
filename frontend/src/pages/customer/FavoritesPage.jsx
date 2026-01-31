@@ -59,7 +59,8 @@ const FavoritesPage = () => {
       setFavoriteStores(storeData || []);
 
       // Fetch favorite medicines
-      const medicines = await getFavoriteMedicines(user.id);
+      const { data: medicines, error: medError } = await getFavoriteMedicines(user.id);
+      if (medError) throw medError;
       setFavoriteMedicines(medicines || []);
     } catch (error) {
       console.error('Error fetching favorites:', error);

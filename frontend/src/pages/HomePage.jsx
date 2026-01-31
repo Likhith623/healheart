@@ -67,6 +67,54 @@ const TypewriterText = ({ texts, className }) => {
 
 // Customer Home Page Component
 const CustomerHomePage = ({ user }) => {
+  const [demoStores, setDemoStores] = useState([]);
+  const [loadingDemo, setLoadingDemo] = useState(true);
+
+  // Fetch real stores and medicines for the demo section
+  useEffect(() => {
+    const fetchDemoData = async () => {
+      try {
+        setLoadingDemo(true);
+        // Fetch stores with their medicines
+        const { data: stores, error } = await supabase
+          .from('stores')
+          .select(`
+            id,
+            store_name,
+            city,
+            medicines (
+              id,
+              name,
+              quantity
+            )
+          `)
+          .limit(5);
+
+        if (!error && stores) {
+          // Transform the data for display
+          const storesWithMedicines = stores
+            .filter(store => store.medicines && store.medicines.length > 0)
+            .map(store => ({
+              name: store.store_name,
+              city: store.city,
+              medicine: store.medicines[0]?.name || 'Various medicines',
+              stock: store.medicines[0]?.quantity > 10 ? 'In Stock' : store.medicines[0]?.quantity > 0 ? 'Low Stock' : 'Out of Stock',
+              medicineCount: store.medicines.length
+            }))
+            .slice(0, 3);
+          
+          setDemoStores(storesWithMedicines);
+        }
+      } catch (error) {
+        console.error('Error fetching demo data:', error);
+      } finally {
+        setLoadingDemo(false);
+      }
+    };
+
+    fetchDemoData();
+  }, []);
+
   const stats = [
     { value: '10K+', label: 'Medicines', icon: Pill },
     { value: '500+', label: 'Pharmacies', icon: Store },
@@ -415,7 +463,7 @@ const CustomerHomePage = ({ user }) => {
         </div>
       </section>
 
-      {/* EMERGENCY SEARCH DEMO SECTION */}
+      {/* EMERGENCY SEARCH SECTION */}
       <section className="py-12 px-4">
         <div className="max-w-4xl mx-auto">
           <motion.div
@@ -446,63 +494,69 @@ const CustomerHomePage = ({ user }) => {
                 <Pill size={32} className="text-white" />
               </motion.div>
               <div>
-                <h3 className="text-xl font-semibold">Emergency Search Demo</h3>
+                <h3 className="text-xl font-semibold">Emergency Search</h3>
                 <p className="text-white/50">Find medicines in seconds</p>
               </div>
             </div>
 
             <div className="space-y-4">
-              {/* Search Demo */}
+              {/* Search Input */}
               <motion.div
                 animate={{ boxShadow: ['0 0 0 0 rgba(20, 184, 166, 0)', '0 0 0 4px rgba(20, 184, 166, 0.1)', '0 0 0 0 rgba(20, 184, 166, 0)'] }}
                 transition={{ duration: 2, repeat: Infinity }}
                 className="glass-input flex items-center gap-3"
               >
                 <Search size={20} className="text-primary-400" />
-                <span className="text-white/70">Paracetamol 500mg...</span>
+                <span className="text-white/70">Search any medicine...</span>
               </motion.div>
 
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex items-center gap-2 text-green-400 text-sm"
-              >
-                <CheckCircle2 size={16} />
-                <span>5 pharmacies found within 2km</span>
-              </motion.div>
+              {loadingDemo ? (
+                <div className="flex items-center justify-center py-4">
+                  <div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : demoStores.length > 0 ? (
+                <>
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex items-center gap-2 text-green-400 text-sm"
+                  >
+                    <CheckCircle2 size={16} />
+                    <span>{demoStores.length} pharmacies with medicines available</span>
+                  </motion.div>
 
-              <div className="space-y-2">
-                {[
-                  { name: 'Apollo Pharmacy', distance: '0.5 km', stock: 'In Stock' },
-                  { name: 'MedPlus Store', distance: '0.8 km', stock: 'In Stock' },
-                  { name: 'Wellness Pharma', distance: '1.2 km', stock: 'Low Stock' },
-                ].map((store, i) => (
-                  <Link key={i} to="/search?q=Paracetamol">
-                    <motion.div
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.5 + i * 0.1 }}
-                      className="flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors cursor-pointer group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary-500/20 to-purple-600/20 flex items-center justify-center">
-                          <Store size={18} className="text-primary-400" />
-                        </div>
-                        <div>
-                          <div className="font-medium text-sm group-hover:text-primary-400 transition-colors">{store.name}</div>
-                          <div className="text-xs text-white/50 flex items-center gap-1">
-                            <MapPin size={10} />
-                            {store.distance}
+                  <div className="space-y-2">
+                    {demoStores.map((store, i) => (
+                      <Link key={i} to={`/search?q=${encodeURIComponent(store.medicine)}`}>
+                        <motion.div
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.5 + i * 0.1 }}
+                          className="flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors cursor-pointer group"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary-500/20 to-purple-600/20 flex items-center justify-center">
+                              <Store size={18} className="text-primary-400" />
+                            </div>
+                            <div>
+                              <div className="font-medium text-sm group-hover:text-primary-400 transition-colors">{store.name}</div>
+                              <div className="text-xs text-white/50 flex items-center gap-1">
+                                <Pill size={10} />
+                                {store.medicine} • {store.medicineCount} medicines
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                      <span className={`text-xs px-2 py-1 rounded-full ${store.stock === 'In Stock' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
-                        {store.stock}
-                      </span>
-                    </motion.div>
-                  </Link>
-                ))}
-              </div>
+                          <span className={`text-xs px-2 py-1 rounded-full ${store.stock === 'In Stock' ? 'bg-green-500/20 text-green-400' : store.stock === 'Low Stock' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400'}`}>
+                            {store.stock}
+                          </span>
+                        </motion.div>
+                      </Link>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="text-white/50 text-center py-4">No pharmacies available yet</p>
+              )}
               
               <Link to="/search">
                 <motion.button

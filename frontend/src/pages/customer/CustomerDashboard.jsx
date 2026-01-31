@@ -71,8 +71,8 @@ const CustomerDashboard = () => {
       if (!favError) setFavorites(favs || []);
 
       // Fetch favorite medicines
-      const { data: favMeds, error: medError } = await getFavoriteMedicines(user.id);
-      if (!medError) setFavoriteMedicines(favMeds || []);
+      const favMedsResult = await getFavoriteMedicines(user.id);
+      if (!favMedsResult.error) setFavoriteMedicines(favMedsResult.data || []);
 
       // Count stats
       const { count: searchCount } = await supabase

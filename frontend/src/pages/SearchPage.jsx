@@ -592,13 +592,13 @@ const SearchPage = () => {
                   </motion.button>
                 </motion.div>
               ) : (
-                <div className={`grid gap-6 ${viewMode === 'map' ? '' : 'lg:grid-cols-2'}`}>
-                  {/* Map Section */}
+                <div className={`grid gap-6 ${viewMode === 'map' ? '' : 'lg:grid-cols-5'}`}>
+                  {/* Map Section - 3 columns for larger size */}
                   <motion.div
                     layout
-                    className={`${viewMode === 'map' ? 'col-span-full' : ''} order-2 lg:order-1`}
+                    className={`${viewMode === 'map' ? 'col-span-full' : 'lg:col-span-3'} order-2 lg:order-1`}
                   >
-                    <div className={`glass-card overflow-hidden ${viewMode === 'map' ? 'h-[600px]' : 'h-[550px]'}`}>
+                    <div className={`glass-card overflow-hidden ${viewMode === 'map' ? 'h-[600px]' : 'h-[600px]'}`}>
                       <MedicineMap
                         stores={transformedStores}
                         selectedMedicine={searchQuery}
@@ -609,15 +609,15 @@ const SearchPage = () => {
                     </div>
                   </motion.div>
 
-                  {/* Results List */}
+                  {/* Results List - 2 columns for narrower width */}
                   {viewMode !== 'map' && (
                     <motion.div
                       layout
                       initial={{ opacity: 0, x: 30 }}
                       animate={{ opacity: 1, x: 0 }}
-                      className="order-1 lg:order-2"
+                      className="order-1 lg:order-2 lg:col-span-2"
                     >
-                      <div className="space-y-3 max-h-[550px] overflow-y-auto pr-2 custom-scrollbar">
+                      <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
                         {results.map((result, index) => (
                           <motion.div
                             key={result.id}
@@ -634,16 +634,23 @@ const SearchPage = () => {
                                   : 'border-transparent hover:border-white/20'
                             }`}
                           >
-                            {/* Crown badge for nearest - tilted cross format sitting on top corner */}
+                            {/* NEAREST ribbon - sitting fully outside the box like a crown/ribbon */}
                             {index === 0 && (
                               <motion.div
-                                initial={{ scale: 0, rotate: -30 }}
-                                animate={{ scale: 1, rotate: -12 }}
-                                className="absolute -top-4 -left-3 z-10"
+                                initial={{ scale: 0, rotate: -45, y: -20 }}
+                                animate={{ scale: 1, rotate: -15, y: 0 }}
+                                transition={{ type: 'spring', bounce: 0.5 }}
+                                className="absolute -top-5 -left-2 z-20"
+                                style={{ transformOrigin: 'center center' }}
                               >
-                                <div className="bg-gradient-to-r from-yellow-500 to-amber-600 rounded-lg px-3 py-1.5 flex items-center gap-1.5 shadow-xl shadow-yellow-500/30 transform">
-                                  <span className="text-base">👑</span>
-                                  <span className="text-xs font-black text-white tracking-wide">NEAREST</span>
+                                <div className="relative">
+                                  {/* Ribbon tail */}
+                                  <div className="absolute -bottom-1.5 left-1 w-4 h-4 bg-amber-700 transform rotate-45" />
+                                  {/* Main ribbon */}
+                                  <div className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-amber-600 rounded-md px-3 py-1.5 flex items-center gap-1.5 shadow-lg shadow-yellow-500/40 relative">
+                                    <span className="text-lg">👑</span>
+                                    <span className="text-[10px] font-black text-white tracking-widest uppercase">NEAREST</span>
+                                  </div>
                                 </div>
                               </motion.div>
                             )}
@@ -729,18 +736,20 @@ const SearchPage = () => {
                                   </span>
                                 </div>
 
-                                {/* Store Info */}
+                                {/* Store Info - Compact */}
                                 <div className="mt-3 pt-3 border-t border-white/10">
                                   <div className="flex items-center gap-2">
-                                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500/20 to-emerald-600/20 flex items-center justify-center">
-                                      <MapPin size={16} className="text-green-400" />
+                                    <div className="w-6 h-6 rounded-md bg-gradient-to-br from-green-500/20 to-emerald-600/20 flex items-center justify-center flex-shrink-0">
+                                      <MapPin size={12} className="text-green-400" />
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                      <p className="font-medium text-primary-400 truncate">
-                                        {result.stores?.store_name}
+                                      <p className="font-medium text-primary-400 truncate text-sm">
+                                        {result.stores?.store_name?.length > 20 
+                                          ? result.stores?.store_name.substring(0, 20) + '...' 
+                                          : result.stores?.store_name}
                                       </p>
                                       <p className="text-xs text-white/40 truncate">
-                                        {result.stores?.address}
+                                        {result.stores?.city || result.stores?.address?.split(',')[0]}
                                       </p>
                                     </div>
                                   </div>
