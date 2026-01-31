@@ -1,7 +1,7 @@
 # 💜 HealHeart — Emergency Medicine Locator
 
 <div align="center">
-  <🌐 https://healheart-344002794323.asia-south1.run.app//>
+
   
   ### *"Because every second counts when lives are at stake"*
   
