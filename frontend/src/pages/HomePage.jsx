@@ -287,9 +287,7 @@ const CustomerHomePage = ({ user }) => {
               viewport={{ once: true }}
               className="p-8 rounded-2xl bg-gradient-to-r from-primary-500/20 via-purple-500/20 to-pink-500/20 border border-primary-500/30 text-center"
             >
-              <span className="inline-block px-4 py-2 rounded-full bg-yellow-500/20 text-yellow-400 text-sm font-bold mb-4">
-                Step 1: Create an Account
-              </span>
+           
               <h2 className="text-2xl sm:text-3xl font-bold mb-3">
                 <span className="gradient-text">Sign In</span> to Unlock Full Access
               </h2>
