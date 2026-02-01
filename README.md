@@ -16,7 +16,7 @@
 
 <br/>
 
-**🏆 Built for Hackathon 2026 | Team Neutrons**
+**Team Neutrons**
 
 ---
 
