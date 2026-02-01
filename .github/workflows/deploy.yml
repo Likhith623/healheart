@@ -1,4 +1,4 @@
-name: Deploy HealHeart to Cloud Run
+name: Deploy HeartHeal to Cloud Run
 
 on:
   push:
@@ -8,12 +8,81 @@ on:
 env:
   PROJECT_ID: project-e899f1f9-5175-4330-8c5
   REGION: asia-south1
-  SERVICE: healheart
+  FRONTEND_SERVICE: healheart
+  BACKEND_SERVICE: healheart-api
   REPO: healheart-repo
 
 jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    outputs:
+      backend_url: ${{ steps.get-url.outputs.url }}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Authenticate to Google Cloud (OIDC)
+      uses: google-github-actions/auth@v2
+      with:
+        workload_identity_provider: "projects/344002794323/locations/global/workloadIdentityPools/github-pool/providers/github"
+        service_account: "github-deployer@project-e899f1f9-5175-4330-8c5.iam.gserviceaccount.com"
+
+    - name: Setup gcloud
+      uses: google-github-actions/setup-gcloud@v2
+
+    - name: Configure Docker
+      run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+    - name: Build & Push Backend Image
+      working-directory: ./backend
+      run: |
+        echo "Building Backend Docker image..."
+        docker build \
+          -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/${{ env.BACKEND_SERVICE }}:${{ github.sha }} \
+          -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/${{ env.BACKEND_SERVICE }}:latest \
+          .
+        echo "Pushing Backend Docker image..."
+        docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/${{ env.BACKEND_SERVICE }}:${{ github.sha }}
+        docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/${{ env.BACKEND_SERVICE }}:latest
+        echo "Backend image pushed successfully!"
+
+    - name: Deploy Backend to Cloud Run
+      run: |
+        echo "Deploying Backend to Cloud Run..."
+        gcloud run deploy ${{ env.BACKEND_SERVICE }} \
+          --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/${{ env.BACKEND_SERVICE }}:${{ github.sha }} \
+          --region ${{ env.REGION }} \
+          --platform managed \
+          --allow-unauthenticated \
+          --port 8000 \
+          --cpu 1 \
+          --memory 512Mi \
+          --min-instances 0 \
+          --max-instances 10 \
+          --timeout 300 \
+          --set-env-vars "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" \
+          --set-env-vars "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" \
+          --set-env-vars "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+          --set-env-vars "GEMINI_API_KEY=${{ secrets.VITE_GEMINI_API_KEY }}" \
+          --set-env-vars "FRONTEND_URL=https://healheart-344002794323.asia-south1.run.app"
+        echo "Backend deployment complete!"
+
+    - name: Get Backend URL
+      id: get-url
+      run: |
+        URL=$(gcloud run services describe ${{ env.BACKEND_SERVICE }} --region ${{ env.REGION }} --format 'value(status.url)')
+        echo "url=$URL" >> $GITHUB_OUTPUT
+        echo "Backend URL: $URL"
+
   deploy-frontend:
     runs-on: ubuntu-latest
+    needs: deploy-backend
 
     permissions:
       id-token: write
@@ -35,35 +104,30 @@ jobs:
     - name: Configure Docker
       run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
 
-    - name: Build & Push Image
+    - name: Build & Push Frontend Image
       working-directory: ./frontend
       run: |
-        echo "Building Docker image..."
+        echo "Building Frontend Docker image..."
+        echo "Backend URL: ${{ needs.deploy-backend.outputs.backend_url }}"
         docker build \
           --build-arg VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }} \
           --build-arg VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }} \
-          --build-arg VITE_API_URL=${{ secrets.VITE_API_URL }} \
+          --build-arg VITE_API_URL=${{ needs.deploy-backend.outputs.backend_url }}/api \
           --build-arg VITE_GOOGLE_MAPS_API_KEY=${{ secrets.VITE_GOOGLE_MAPS_API_KEY }} \
-          --build-arg VITE_GEMINI_API_KEY=${{ secrets.VITE_GEMINI_API_KEY }} \
-          -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/${{ env.SERVICE }}:${{ github.sha }} \
-          -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/${{ env.SERVICE }}:latest \
+          -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/${{ env.FRONTEND_SERVICE }}:${{ github.sha }} \
+          -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/${{ env.FRONTEND_SERVICE }}:latest \
           -f Dockerfile \
           .
-        echo "Pushing Docker image..."
-        docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/${{ env.SERVICE }}:${{ github.sha }}
-        docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/${{ env.SERVICE }}:latest
-        echo "Image pushed successfully!"
+        echo "Pushing Frontend Docker image..."
+        docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/${{ env.FRONTEND_SERVICE }}:${{ github.sha }}
+        docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/${{ env.FRONTEND_SERVICE }}:latest
+        echo "Frontend image pushed successfully!"
 
-    - name: Verify Image
+    - name: Deploy Frontend to Cloud Run
       run: |
-        echo "Verifying image exists..."
-        gcloud artifacts docker images describe ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/${{ env.SERVICE }}:${{ github.sha }}
-
-    - name: Deploy to Cloud Run
-      run: |
-        echo "Deploying to Cloud Run..."
-        gcloud run deploy ${{ env.SERVICE }} \
-          --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/${{ env.SERVICE }}:${{ github.sha }} \
+        echo "Deploying Frontend to Cloud Run..."
+        gcloud run deploy ${{ env.FRONTEND_SERVICE }} \
+          --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/${{ env.FRONTEND_SERVICE }}:${{ github.sha }} \
           --region ${{ env.REGION }} \
           --platform managed \
           --allow-unauthenticated \
@@ -72,10 +136,13 @@ jobs:
           --memory 512Mi \
           --min-instances 0 \
           --max-instances 10 \
-          --timeout 300 \
-          --execution-environment gen2
-        echo "Deployment complete!"
+          --timeout 300
+        echo "Frontend deployment complete!"
         
-    - name: Show Service URL
+    - name: Show Service URLs
       run: |
-        gcloud run services describe ${{ env.SERVICE }} --region ${{ env.REGION }} --format 'value(status.url)'
+        echo "=== Deployment Complete ==="
+        echo "Frontend URL:"
+        gcloud run services describe ${{ env.FRONTEND_SERVICE }} --region ${{ env.REGION }} --format 'value(status.url)'
+        echo "Backend URL:"
+        echo "${{ needs.deploy-backend.outputs.backend_url }}"

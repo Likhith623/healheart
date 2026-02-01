@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from datetime import date
 from app.config import settings
-from app.routes import auth, stores, medicines, upload, customer
+from app.routes import auth, stores, medicines, upload, customer, chatbot
 from app.database import supabase_admin
 
 
@@ -48,7 +48,11 @@ app.add_middleware(
         "http://localhost:3000",
         "http://127.0.0.1:5173",
         "http://127.0.0.1:5174",
-        "http://127.0.0.1:3000"
+        "http://127.0.0.1:3000",
+        "https://healheart-344002794323.asia-south1.run.app",
+        "https://healheart-juzx62eyxq-el.a.run.app",
+        # Allow all Cloud Run URLs for this project
+        "https://*.run.app"
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -61,6 +65,7 @@ app.include_router(stores.router, prefix="/api")
 app.include_router(medicines.router, prefix="/api")
 app.include_router(upload.router, prefix="/api")
 app.include_router(customer.router, prefix="/api")
+app.include_router(chatbot.router, prefix="/api")
 
 
 @app.get("/")

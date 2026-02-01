@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     # Google Maps (Optional)
     google_maps_api_key: Optional[str] = None
     
+    # Gemini AI API Key
+    gemini_api_key: Optional[str] = None
+    
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

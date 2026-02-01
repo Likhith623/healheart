@@ -13,7 +13,8 @@ import {
   ChevronDown,
 } from 'lucide-react';
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+// API URL - use environment variable or default to localhost for development
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 const Chatbot = ({ onMedicineSearch, initialQuery = null, isOpenExternal = false, onClose }) => {
   const [isOpen, setIsOpen] = useState(isOpenExternal);
@@ -65,71 +66,32 @@ const Chatbot = ({ onMedicineSearch, initialQuery = null, isOpenExternal = false
   };
 
   const generateGeminiResponse = async (userMessage) => {
-    const systemPrompt = `You are MedAssist AI, a comprehensive health and medicine assistant for the MediFind Emergency Medicine Locator app. 
-
-YOUR CAPABILITIES:
-1. **Medicines & Drugs**: Explain uses, dosages, side effects, interactions, alternatives for ALL medicines - from common painkillers to specialized medications
-2. **Symptoms & Conditions**: Help identify what medicine might be needed for various symptoms
-3. **Diet & Nutrition**: Provide dietary advice for health conditions, weight management, and general wellness
-4. **Skincare**: Advise on skincare routines, acne treatments, serums, moisturizers, and dermatological products
-5. **Haircare**: Help with hair loss treatments (like Minoxidil), hair growth serums, dandruff solutions
-6. **Supplements & Vitamins**: Explain benefits, dosages, and when to take supplements
-7. **Medical Procedures**: Provide basic information about surgeries, treatments, and recovery
-8. **Health Tips**: Offer preventive health advice and lifestyle recommendations
-
-RESPONSE STYLE:
-- Be CONCISE and TO THE POINT - no unnecessary fluff
-- Use bullet points for clarity
-- Highlight important warnings in bold
-- Keep responses under 150 words unless detailed info is requested
-- Use simple terms anyone can understand
-- Always include a brief disclaimer when appropriate
-
-FORMAT MEDICINE NAMES:
-- Always write medicine names in **bold** format like **Paracetamol**
-
-IMPORTANT:
-- For serious symptoms, always recommend consulting a doctor
-- Never diagnose conditions - only provide information
-- Mention common brand names when relevant for India market`;
-
     try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  {
-                    text: `${systemPrompt}\n\nUser: ${userMessage}\n\nAssistant:`,
-                  },
-                ],
-              },
-            ],
-            generationConfig: {
-              temperature: 0.7,
-              maxOutputTokens: 500,
-            },
-          }),
-        }
-      );
+      // Call backend API instead of Gemini directly
+      const response = await fetch(`${API_URL}/chatbot/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: userMessage,
+        }),
+      });
 
       if (!response.ok) {
-        throw new Error('Failed to get response');
+        throw new Error('Failed to get response from server');
       }
 
       const data = await response.json();
-      return (
-        data.candidates?.[0]?.content?.parts?.[0]?.text ||
-        "I'm sorry, I couldn't process that. Please try again."
-      );
+      
+      if (data.success) {
+        return data.response;
+      } else {
+        console.error('Chatbot API error:', data.error);
+        return "I'm having trouble connecting right now. Please try again in a moment.";
+      }
     } catch (error) {
-      console.error('Gemini API error:', error);
+      console.error('Chatbot error:', error);
       return "I'm having trouble connecting right now. Please try again in a moment.";
     }
   };
