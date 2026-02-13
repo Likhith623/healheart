@@ -2,7 +2,7 @@
 
 # 💜 HealHeart
 
-### Emergency Medicine Locator Platform
+
 
 <img src="https://img.shields.io/badge/Status-Live-brightgreen?style=for-the-badge" alt="Status"/>
 <img src="https://img.shields.io/badge/Version-1.0.0-blue?style=for-the-badge" alt="Version"/>
@@ -16,7 +16,7 @@
 
 <br/>
 
-**Team Neutrons**
+
 
 ---
 
